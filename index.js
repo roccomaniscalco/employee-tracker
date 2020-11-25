@@ -2,7 +2,9 @@ const inquirer = require("inquirer");
 const mysql = require("mysql");
 const cTable = require("console.table");
 
-var connection = mysql.createConnection({
+const {Department, Role, Employee} = require("./util");
+
+connection = mysql.createConnection({
   host: "localhost",
   port: 3306,
   user: "root",
@@ -13,5 +15,10 @@ var connection = mysql.createConnection({
 connection.connect(function (err) {
   if (err) throw err;
   console.log("connected as id " + connection.threadId + "\n");
-  connection.end();
 });
+
+new Department("development").insertRow();
+new Role("Senior Developer", 90000, 1).insertRow();
+new Employee("Tom", "Browne", 1, null).insertRow();
+
+connection.end();
