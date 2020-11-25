@@ -2,7 +2,7 @@ const inquirer = require("inquirer");
 const mysql = require("mysql");
 const cTable = require("console.table");
 
-const {Department, Role, Employee} = require("./util");
+const {Department, Role, Employee, viewEmployees} = require("./util");
 
 connection = mysql.createConnection({
   host: "localhost",
@@ -19,6 +19,8 @@ connection.connect(function (err) {
 
 new Department("development").insertRow();
 new Role("Senior Developer", 90000, 1).insertRow();
-new Employee("Tom", "Browne", 1, null).insertRow();
+new Employee("Tom", "Browne", 1, 1).insertRow();
+
+viewEmployees();
 
 connection.end();

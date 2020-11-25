@@ -64,8 +64,22 @@ class Employee {
   }
 }
 
+const viewEmployees = () => {
+  connection.query(
+    `SELECT e.id, e.firstName, e.lastName, r.role, d.department, r.salary
+    FROM employee e 
+    LEFT JOIN role r ON e.roleId = r.id
+    LEFT JOIN department d ON r.departmentId = d.id`,
+    (err, res) => {
+      if (err) throw err;
+      console.table(res);
+    }
+  );
+};
+
 module.exports = {
   Department,
   Role,
   Employee,
+  viewEmployees
 };

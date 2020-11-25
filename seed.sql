@@ -36,3 +36,9 @@ UPDATE employee SET roleId = 2 WHERE id = 1;
 SELECT * FROM department;
 SELECT * FROM role;
 SELECT * FROM employee;
+
+SELECT e.id, e.firstName, e.lastname, r.role, d.department, r.salary, m.firstName
+FROM employee e 
+LEFT JOIN role r ON e.roleId = r.id
+LEFT JOIN department d ON r.departmentId = d.id
+LEFT JOIN employee m ON e.managerId = m.id;
