@@ -1,7 +1,16 @@
 module.exports = orm = {
-  selectFrom: (table) => {
+  select: (table) => {
     return new Promise((resolve, reject) => {
       connection.query(`SELECT * FROM ??`, [table], (err, res) => {
+        if (err) reject(err);
+        else resolve(res);
+      });
+    });
+  },
+
+  selectWhere: (table, condition) => {
+    return new Promise((resolve, reject) => {
+      connection.query(`SELECT * FROM ?? WHERE ${condition}`, [table], (err, res) => {
         if (err) reject(err);
         else resolve(res);
       });
@@ -44,9 +53,8 @@ module.exports = orm = {
       `SELECT e.id, e.firstName, e.lastName, r.role, r.salary, d.department
         FROM employee e
         LEFT JOIN role r ON e.roleId = r.id
-        LEFT JOIN employee m ON e.managerId = m.id
-        LEFT JOIN department d ON r.departmentId
-        WHERE e.id = ?;`,
+        LEFT JOIN department d ON r.departmentId = d.id
+        WHERE e.managerId = ?;`,
       [managerId],
       (err, res) => {
         if (err) throw err;

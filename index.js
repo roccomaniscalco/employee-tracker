@@ -1,6 +1,6 @@
 const inquirer = require("inquirer");
 const mysql = require("mysql");
-const cTable = require("console.table");
+require("console.table");
 
 const Department = require("./util/models/Department");
 const Employee = require("./util/models/Employee");
@@ -31,16 +31,14 @@ const selectFunction = () => {
           "View All Employees",
           "View Employees by Department",
           "View Employees by Manager",
-          // new inquirer.Separator(),
           "Add Employee",
           "Add Department",
           "Add Role",
           "Update Employee Role",
-          // new inquirer.Separator(),
         ],
       },
     ])
-    .then(({ selectedFunction }) => {
+    .then(async ({ selectedFunction }) => {
       switch (selectedFunction) {
         case "View All Employees":
           orm.printEmployees();
@@ -76,7 +74,7 @@ viewDepartment = async () => {
 };
 
 selectDepartment = async () => {
-  const departments = await orm.selectFrom("department");
+  const departments = await orm.select("department");
   return inquirer.prompt([
     {
       name: "departmentId",
@@ -94,23 +92,44 @@ viewManager = async () => {
   orm.printManager(managerId);
 };
 
-selectManager = async () => {
-  const managers = await orm.selectFrom("employee");
-  console.log(managers);
+selectNewManager = async () => {
+  const employees = await orm.select("employee");
   return inquirer.prompt([
     {
       name: "managerId",
       type: "list",
       message: "Select Manager:",
-      choices: managers.map(({ firstName, lastName, managerId }) => {
-        return { name: firstName + " " + lastName, value: managerId };
+      choices: employees.map(({ firstName, lastName, id }) => {
+        return { name: firstName + " " + lastName, value: id };
+      }),
+    },
+  ]);
+};
+
+selectManager = async () => {
+  const employees = await orm.selectWhere("employee", "managerId IS NOT NULL");
+  const managerIds = [...new Set(employees.map(({ managerId }) => managerId))];
+  const managers = [];
+  for (let i = 0; i < managerIds.length; i++) {
+    managers.push(
+      (await orm.selectWhere("employee", `id = ${managerIds[i]}`))[0]
+    );
+  }
+
+  return inquirer.prompt([
+    {
+      name: "managerId",
+      type: "list",
+      message: "Select Manager:",
+      choices: managers.map(({ firstName, lastName, id }) => {
+        return { name: firstName + " " + lastName, value: id };
       }),
     },
   ]);
 };
 
 selectRole = async () => {
-  const roles = await orm.selectFrom("role");
+  const roles = await orm.select("role");
   return inquirer.prompt([
     {
       name: "roleId",
@@ -137,12 +156,27 @@ inputEmployee = () => {
     ])
     .then(async ({ firstName, lastName }) => {
       const { roleId } = await selectRole();
-      new Employee(firstName, lastName, roleId, null).insertRow();
+      const {isAppointingManager} = await confirmManagerAppointment(firstName, lastName);
+      if(isAppointingManager){
+        const { managerId } = await selectNewManager();
+        new Employee(firstName, lastName, roleId, managerId).insertRow();
+      }
+      else new Employee(firstName, lastName, roleId, null).insertRow();
     })
     .catch((err) => {
       throw err;
     });
 };
+
+confirmManagerAppointment = (firstName, lastName) => {
+  return inquirer.prompt([
+    {
+      name: "isAppointingManager",
+      message: `Appoint manager for ${firstName} ${lastName}`,
+      type: "confirm",
+    },
+  ])
+}
 
 inputDepartment = () => {
   inquirer
