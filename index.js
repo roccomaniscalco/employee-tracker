@@ -1,12 +1,15 @@
+//Dependencies
 const inquirer = require("inquirer");
 const mysql = require("mysql");
 require("console.table");
 
+//Models & ORM
 const Department = require("./util/models/Department");
 const Employee = require("./util/models/Employee");
 const Role = require("./util/models/Role");
 const orm = require("./util/orm");
 
+//Establish DB Connection
 connection = mysql.createConnection({
   host: "localhost",
   port: 3306,
@@ -20,6 +23,7 @@ connection.connect((err) => {
   selectFunction();
 });
 
+//Prompt User To Select Function
 const selectFunction = () => {
   inquirer
     .prompt([
@@ -68,11 +72,83 @@ const selectFunction = () => {
     });
 };
 
+
+//Viewing DB data
 viewDepartment = async () => {
   const { departmentId } = await selectDepartment();
   orm.printDepartment(departmentId);
 };
 
+viewManager = async () => {
+  const { managerId } = await selectManager();
+  orm.printManager(managerId);
+};
+
+//Inserting DB data
+inputEmployee = () => {
+  inquirer
+    .prompt([
+      {
+        name: "firstName",
+        message: "First Name:",
+      },
+      {
+        name: "lastName",
+        message: "Last Name:",
+      },
+    ])
+    .then(async ({ firstName, lastName }) => {
+      const { roleId } = await selectRole();
+      const {isAppointingManager} = await confirmManagerAppointment(firstName, lastName);
+      if(isAppointingManager){
+        const { managerId } = await selectNewManager();
+        new Employee(firstName, lastName, roleId, managerId).insertRow();
+      }
+      else new Employee(firstName, lastName, roleId, null).insertRow();
+    })
+    .catch((err) => {
+      throw err;
+    });
+};
+
+inputDepartment = () => {
+  inquirer
+    .prompt([
+      {
+        name: "department",
+        message: "Department Title:",
+      },
+    ])
+    .then(({ department }) => {
+      new Department(department).insertRow();
+    })
+    .catch((err) => {
+      throw err;
+    });
+};
+
+inputRole = () => {
+  inquirer
+    .prompt([
+      {
+        name: "role",
+        message: "Role Title:",
+      },
+      {
+        name: "salary",
+        message: "Salary:",
+      },
+    ])
+    .then(async ({ role, salary }) => {
+      const { departmentId } = await selectDepartment();
+      new Role(role, salary, departmentId).insertRow();
+    })
+    .catch((err) => {
+      throw err;
+    });
+};
+
+// Helpers
 selectDepartment = async () => {
   const departments = await orm.select("department");
   return inquirer.prompt([
@@ -85,11 +161,6 @@ selectDepartment = async () => {
       }),
     },
   ]);
-};
-
-viewManager = async () => {
-  const { managerId } = await selectManager();
-  orm.printManager(managerId);
 };
 
 selectNewManager = async () => {
@@ -142,32 +213,6 @@ selectRole = async () => {
   ]);
 };
 
-inputEmployee = () => {
-  inquirer
-    .prompt([
-      {
-        name: "firstName",
-        message: "First Name:",
-      },
-      {
-        name: "lastName",
-        message: "Last Name:",
-      },
-    ])
-    .then(async ({ firstName, lastName }) => {
-      const { roleId } = await selectRole();
-      const {isAppointingManager} = await confirmManagerAppointment(firstName, lastName);
-      if(isAppointingManager){
-        const { managerId } = await selectNewManager();
-        new Employee(firstName, lastName, roleId, managerId).insertRow();
-      }
-      else new Employee(firstName, lastName, roleId, null).insertRow();
-    })
-    .catch((err) => {
-      throw err;
-    });
-};
-
 confirmManagerAppointment = (firstName, lastName) => {
   return inquirer.prompt([
     {
@@ -177,36 +222,5 @@ confirmManagerAppointment = (firstName, lastName) => {
     },
   ])
 }
-
-inputDepartment = () => {
-  inquirer
-    .prompt([
-      {
-        name: "department",
-        message: "Department Title:",
-      },
-    ])
-    .then(({ department }) => {
-      new Department(department).insertRow();
-    });
-};
-
-inputRole = () => {
-  inquirer
-    .prompt([
-      {
-        name: "role",
-        message: "Role Title:",
-      },
-      {
-        name: "salary",
-        message: "Salary:",
-      },
-    ])
-    .then(async ({ role, salary }) => {
-      const { departmentId } = await selectDepartment();
-      new Role(role, salary, departmentId).insertRow();
-    });
-};
 
 // connection.end();
