@@ -72,7 +72,6 @@ const selectFunction = () => {
     });
 };
 
-
 //Viewing DB data
 viewDepartment = async () => {
   const { departmentId } = await selectDepartment();
@@ -99,12 +98,14 @@ inputEmployee = () => {
     ])
     .then(async ({ firstName, lastName }) => {
       const { roleId } = await selectRole();
-      const {isAppointingManager} = await confirmManagerAppointment(firstName, lastName);
-      if(isAppointingManager){
+      const { isAppointingManager } = await confirmManagerAppointment(
+        firstName,
+        lastName
+      );
+      if (isAppointingManager) {
         const { managerId } = await selectNewManager();
         new Employee(firstName, lastName, roleId, managerId).insertRow();
-      }
-      else new Employee(firstName, lastName, roleId, null).insertRow();
+      } else new Employee(firstName, lastName, roleId, null).insertRow();
     })
     .catch((err) => {
       throw err;
@@ -148,6 +149,12 @@ inputRole = () => {
     });
 };
 
+updateRole = async () => {
+  const { employeeId } = await selectEmployee();
+  const { roleId } = await selectRole();
+  orm.updateRole(employeeId,roleId);
+};
+
 // Helpers
 selectDepartment = async () => {
   const departments = await orm.select("department");
@@ -158,6 +165,20 @@ selectDepartment = async () => {
       message: "Select Department:",
       choices: departments.map(({ department, id }) => {
         return { name: department, value: id };
+      }),
+    },
+  ]);
+};
+
+selectEmployee = async () => {
+  const employees = await orm.select("employee");
+  return inquirer.prompt([
+    {
+      name: "employeeId",
+      type: "list",
+      message: "Select Employee:",
+      choices: employees.map(({ firstName, lastName, id }) => {
+        return { name: firstName + " " + lastName, value: id };
       }),
     },
   ]);
@@ -220,7 +241,7 @@ confirmManagerAppointment = (firstName, lastName) => {
       message: `Appoint manager for ${firstName} ${lastName}`,
       type: "confirm",
     },
-  ])
-}
+  ]);
+};
 
 // connection.end();

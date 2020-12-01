@@ -10,11 +10,26 @@ module.exports = orm = {
 
   selectWhere: (table, condition) => {
     return new Promise((resolve, reject) => {
-      connection.query(`SELECT * FROM ?? WHERE ${condition}`, [table], (err, res) => {
-        if (err) reject(err);
-        else resolve(res);
-      });
+      connection.query(
+        `SELECT * FROM ?? WHERE ${condition}`,
+        [table],
+        (err, res) => {
+          if (err) reject(err);
+          else resolve(res);
+        }
+      );
     });
+  },
+
+  updateRole: (roleId, employeeId) => {
+    connection.query(
+      `UPDATE employee SET roleId = ? WHERE id = ? `,
+      [roleId, employeeId],
+      (err, res) => {
+        if (err) throw err;
+        else console.log(`UPDATED ROLE`);
+      }
+    );
   },
 
   printEmployees: () => {
