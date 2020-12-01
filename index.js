@@ -1,15 +1,13 @@
-//Dependencies
-const inquirer = require("inquirer");
 const mysql = require("mysql");
 require("console.table");
 
-//Models & ORM
-const Department = require("./util/models/Department");
-const Employee = require("./util/models/Employee");
-const Role = require("./util/models/Role");
+const Department = require("./models/Department");
+const Employee = require("./models/Employee");
+const Role = require("./models/Role");
 const orm = require("./util/orm");
+const prompt = require("./util/prompt");
 
-//Establish DB Connection
+// declares connection globally
 connection = mysql.createConnection({
   host: "localhost",
   port: 3306,
@@ -23,225 +21,108 @@ connection.connect((err) => {
   selectFunction();
 });
 
-//Prompt User To Select Function
-const selectFunction = () => {
-  inquirer
-    .prompt([
-      {
-        name: "selectedFunction",
-        type: "list",
-        message: "Perform Function:",
-        choices: [
-          "View All Employees",
-          "View Employees by Department",
-          "View Employees by Manager",
-          "Add Employee",
-          "Add Department",
-          "Add Role",
-          "Update Employee Role",
-        ],
-      },
-    ])
-    .then(async ({ selectedFunction }) => {
-      switch (selectedFunction) {
-        case "View All Employees":
-          orm.printEmployees();
-          break;
-        case "View Employees by Department":
-          viewDepartment();
-          break;
-        case "View Employees by Manager":
-          viewManager();
-          break;
-        case "Add Employee":
-          inputEmployee();
-          break;
-        case "Add Department":
-          inputDepartment();
-          break;
-        case "Add Role":
-          inputRole();
-          break;
-        case "Update Employee Role":
-          updateRole();
-          break;
-      }
-    })
-    .catch((err) => {
-      throw err;
-    });
-};
-
-//Viewing DB data
-viewDepartment = async () => {
-  const { departmentId } = await selectDepartment();
-  orm.printDepartment(departmentId);
-};
-
-viewManager = async () => {
-  const { managerId } = await selectManager();
-  orm.printManager(managerId);
-};
-
-//Inserting DB data
-inputEmployee = () => {
-  inquirer
-    .prompt([
-      {
-        name: "firstName",
-        message: "First Name:",
-      },
-      {
-        name: "lastName",
-        message: "Last Name:",
-      },
-    ])
-    .then(async ({ firstName, lastName }) => {
-      const { roleId } = await selectRole();
-      const { isAppointingManager } = await confirmManagerAppointment(
-        firstName,
-        lastName
-      );
-      if (isAppointingManager) {
-        const { managerId } = await selectNewManager();
-        new Employee(firstName, lastName, roleId, managerId).insertRow();
-      } else new Employee(firstName, lastName, roleId, null).insertRow();
-    })
-    .catch((err) => {
-      throw err;
-    });
-};
-
-inputDepartment = () => {
-  inquirer
-    .prompt([
-      {
-        name: "department",
-        message: "Department Title:",
-      },
-    ])
-    .then(({ department }) => {
-      new Department(department).insertRow();
-    })
-    .catch((err) => {
-      throw err;
-    });
-};
-
-inputRole = () => {
-  inquirer
-    .prompt([
-      {
-        name: "role",
-        message: "Role Title:",
-      },
-      {
-        name: "salary",
-        message: "Salary:",
-      },
-    ])
-    .then(async ({ role, salary }) => {
-      const { departmentId } = await selectDepartment();
-      new Role(role, salary, departmentId).insertRow();
-    })
-    .catch((err) => {
-      throw err;
-    });
-};
-
-updateRole = async () => {
-  const { employeeId } = await selectEmployee();
-  const { roleId } = await selectRole();
-  orm.updateRole(employeeId,roleId);
-};
-
-// Helpers
-selectDepartment = async () => {
-  const departments = await orm.select("department");
-  return inquirer.prompt([
-    {
-      name: "departmentId",
-      type: "list",
-      message: "Select Department:",
-      choices: departments.map(({ department, id }) => {
-        return { name: department, value: id };
-      }),
-    },
+const selectFunction = async () => {
+  const { selectedFunction } = await prompt.listFunctions([
+    "View All Employees",
+    "View Employees by Department",
+    "View Employees by Manager",
+    "Add Employee",
+    "Add Department",
+    "Add Role",
+    "Update Employee Role",
+    // makes 'EXIT' green
+    "\x1b[32mEXIT\x1b[0m",
   ]);
-};
-
-selectEmployee = async () => {
-  const employees = await orm.select("employee");
-  return inquirer.prompt([
-    {
-      name: "employeeId",
-      type: "list",
-      message: "Select Employee:",
-      choices: employees.map(({ firstName, lastName, id }) => {
-        return { name: firstName + " " + lastName, value: id };
-      }),
-    },
-  ]);
-};
-
-selectNewManager = async () => {
-  const employees = await orm.select("employee");
-  return inquirer.prompt([
-    {
-      name: "managerId",
-      type: "list",
-      message: "Select Manager:",
-      choices: employees.map(({ firstName, lastName, id }) => {
-        return { name: firstName + " " + lastName, value: id };
-      }),
-    },
-  ]);
-};
-
-selectManager = async () => {
-  const employees = await orm.selectWhere("employee", "managerId IS NOT NULL");
-  const managerIds = [...new Set(employees.map(({ managerId }) => managerId))];
-  const managers = [];
-  for (let i = 0; i < managerIds.length; i++) {
-    managers.push(
-      (await orm.selectWhere("employee", `id = ${managerIds[i]}`))[0]
-    );
+  switch (selectedFunction) {
+    case "View All Employees":
+      viewAll();
+      break;
+    case "View Employees by Department":
+      viewDepartment();
+      break;
+    case "View Employees by Manager":
+      viewManager();
+      break;
+    case "Add Employee":
+      addEmployee();
+      break;
+    case "Add Department":
+      addDepartment();
+      break;
+    case "Add Role":
+      addRole();
+      break;
+    case "Update Employee Role":
+      updateRole();
+      break;
+    case "\x1b[32mEXIT\x1b[0m":
+      connection.end();
   }
-
-  return inquirer.prompt([
-    {
-      name: "managerId",
-      type: "list",
-      message: "Select Manager:",
-      choices: managers.map(({ firstName, lastName, id }) => {
-        return { name: firstName + " " + lastName, value: id };
-      }),
-    },
-  ]);
 };
 
-selectRole = async () => {
-  const roles = await orm.select("role");
-  return inquirer.prompt([
-    {
-      name: "roleId",
-      type: "list",
-      message: "Select Role:",
-      choices: roles.map(({ role, id }) => {
-        return { name: role, value: id };
-      }),
-    },
-  ]);
+const viewAll = async () => {
+  console.table(await orm.printEmployees());
+
+  selectFunction();
 };
 
-confirmManagerAppointment = (firstName, lastName) => {
-  return inquirer.prompt([
-    {
-      name: "isAppointingManager",
-      message: `Appoint manager for ${firstName} ${lastName}`,
-      type: "confirm",
-    },
-  ]);
+const viewDepartment = async () => {
+  const { departmentId } = await prompt.listDepartment();
+  console.table(await orm.printDepartment(departmentId));
+
+  selectFunction();
 };
 
-// connection.end();
+const viewManager = async () => {
+  const { managerId } = await prompt.listManagers();
+  console.table(await orm.printManager(managerId));
+
+  selectFunction();
+};
+
+const addEmployee = async () => {
+  const { firstName, lastName } = await prompt.inputName();
+  const { roleId } = await prompt.listRoles();
+  const { isAppointingManager } = await prompt.confirmManagerAppointment();
+
+  // sets managerId to null if no manager is appointed
+  if (isAppointingManager) {
+    const { managerId } = await prompt.listEmployees("Select Manager:");
+    console.log(
+      "\x1b[32m",
+      await new Employee(firstName, lastName, roleId, managerId).insertRow()
+    );
+  } else
+    console.log(
+      "\x1b[32m",
+      await new Employee(firstName, lastName, roleId, managerId).insertRow()
+    );
+
+  selectFunction();
+};
+
+const addDepartment = async () => {
+  const { department } = await prompt.inputDepartment();
+  console.log("\x1b[32m", await new Department(department).insertRow());
+
+  selectFunction();
+};
+
+const addRole = async () => {
+  const { role, salary } = await prompt.inputRole();
+  const { departmentId } = await prompt.listDepartment();
+  console.log(
+    "\x1b[32m",
+    await new Role(role, salary, departmentId).insertRow()
+  );
+
+  selectFunction();
+};
+
+const updateRole = async () => {
+  const { employeeId } = await prompt.listEmployees("Select Employee:");
+  const { roleId } = await prompt.listRoles();
+  console.log("\x1b[32m", await orm.updateRole(employeeId, roleId));
+
+  selectFunction();
+};
